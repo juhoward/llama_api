@@ -1,0 +1,25 @@
+[Unit]
+Description=g-chat-local daemon
+Requires=g-chat-local.socket
+After=network.target
+
+[Service]
+Type=notify
+# the specific user that our service will run as
+User=digitalopt
+Group=digitalopt
+# another option for an even more restricted service is
+# DynamicUser=yes
+# see http://0pointer.net/blog/dynamic-users-with-systemd.html
+RuntimeDirectory=gunicorn
+WorkingDirectory=/home/digitalopt/proj/chatbot/chatbot-v1
+# use command `which gunicorn` to find its path within the activated environment
+ExecStart=/home/digitalopt/miniconda3/envs/chatbot-v1/bin/gunicorn -c config/gunicorn.conf.py
+ExecReload=/bin/kill -HUP $MAINPID
+KillMode=mixed
+TimeoutStopSec=5
+PrivateTmp=true
+StandardOutput=file:/var/log/gunicorn/g-chat-local.log
+
+[Install]
+WantedBy=multi-user.target
