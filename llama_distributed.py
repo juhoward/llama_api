@@ -5,7 +5,6 @@ import torch
 import os
 import logging
 import gc
-import sys
 import datetime
 
 # don't remove even though we should use gunicorn.error as log
@@ -41,6 +40,10 @@ class Distributed_Loader(object):
         self.response_queues = [Queue() for _ in range(cfg["world_size"])]
         self.processes = []
         self.response = None
+        self.system_message = [{
+            "role": "system",
+            "content": "You are an Optician. Always give brief answers that relate to subjective refractions.",
+            }]
         if initialize:
             self.initialize()
 
@@ -62,12 +65,7 @@ class Distributed_Loader(object):
 
             # replace Llama 2 default system message
             if dialogs[0][0]["role"] != "system":
-                dialogs[0] = [
-                    {
-                        "role": "system",
-                        "content": "You are an Optician. Always give brief answers that relate to subjective refractions.",
-                    }
-                ] + dialogs[0]
+                dialogs[0] = self.system_message + dialogs[0]
             model_log.debug(f'MODEL: Processing messages...\n {dialogs}')
             # send messages to Llama 2
             with torch.no_grad():

@@ -1,13 +1,13 @@
 from flask import (Flask, request, jsonify)
 import argparse, logging
 from llama_distributed import Distributed_Loader
-
+from flask_cors import CORS
 model = Distributed_Loader(initialize=False)
 # lists to keep track of conversation
 request_queues = [list() for _ in range(model.cfg["world_size"])]
 # flask setup
 app = Flask(__name__)
-
+CORS(app)
 # For Gunicorn: sets flask logger to the same settings as gunicorn logger
 log = logging.getLogger('gunicorn.error')
 app.logger.handlers = log.handlers
@@ -60,6 +60,7 @@ def chat():
     # validate message format
     errors = check_messages(messages["message"])
     if errors:
+        log.debug(f"Formatting Error: {errors}")
         return errors
     # add messages to queue for Llama 2
     for rank in range(model.cfg["world_size"]):
@@ -79,8 +80,23 @@ def chat():
         request_queues[rank].append(response)
         log.debug(request_queues[rank])
     # return regular JSON response
-    return jsonify(response)
-
+    response = jsonify(response)
+    response.headers['Access-Control-Allow-Origin'] = "*"
+    return response
+@app.route("/system", methods=["POST"])
+def system():
+    # get messages from request
+    messages = dict(request.json)
+    request_queues = [list() for _ in range(model.cfg["world_size"])]
+    # validate message format
+    errors = check_messages(messages["message"])
+    if errors:
+        log.debug(f"Formatting Error: {errors}")
+        return errors
+    model.system_message[0]["content"] = messages["message"][0]["content"]
+    response = jsonify(messages)
+    response.headers['Access-Control-Allow-Origin'] = "*"
+    return response
 
 @app.route('/', methods=['GET'])
 def is_running():
